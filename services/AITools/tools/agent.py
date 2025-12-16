@@ -1,16 +1,18 @@
 from services.common.ocrBase import AIBase
+from services.common.oumodels import OutputData
 from services.AITools.configs import cfazure
 
 from services.AITools.vlm import AzureChatModel
 
-from utils.JinjaTemplate import TemplateLoading
+from utils.JinjaTemplate import TemplateLoading, AgentTask
 from utils.LoggingUtils import MessageTemplate
 
 import os, json
 
-class AzureQuery(AIBase):
-    def __init__(self, model_name, auths, root:str, template:str):
+class AzureAgent(AIBase):
+    def __init__(self, model_name, auths, root:str, template:str,iteration:int=1,temperature=0.3):
         super().__init__(model_name, auths)
+        self.name = self.__class__.__name__
 
         # setup configs/ environments
         env = cfazure.CONFIGS()
@@ -18,8 +20,12 @@ class AzureQuery(AIBase):
         self.endpoint = env.ENDPOINT
         self.key = env.KEY
         self.version = env.VERSION
+        self.iteration = iteration
+        self.temperature = temperature
 
         self.tplObj = TemplateLoading(root,template)
+
+        self.nbr_tasks = env.NBR_TASKS
 
 
     def _init_(self):
@@ -35,15 +41,25 @@ class AzureQuery(AIBase):
             stream=False
         )
 
-    def _format_data(self,data_request):
+    def _format_data(self,task_list,contents):
         """
             standard parameters in template: who_are_you, global_context, local_context, requests : {name, formula}
         """
+        agentInst = AgentTask()
+        outputs = []
 
-        final_outputs = []
+        max_task = len(task_list)
+
+        for i in range(0,max_task,self.nbr_tasks):
+            
+            task_sublist = task_list[i:i+self.nbr_tasks]
+            flag, res = agentInst(contents,task_sublist)
+
+            if flag:
+                outputs.append(res)
+
         
-
-
+        return True if len(outputs) > 0 else False ,outputs
 
     def _fill_data_into_template(self,data):
 
@@ -74,7 +90,7 @@ class AzureQuery(AIBase):
         outputs = []
 
         response = await self.client(
-            [{"role" : "user", "content" :input_content}]
+            messages = [{"role" : "user", "content" :input_content}]
         )
 
         output_contents = response.content
@@ -88,16 +104,20 @@ class AzureQuery(AIBase):
                 if flg:
                     outputs = self._merge_output(outputs,outs)
 
+
         return outputs
 
-    async def execute(self,data_request:dict):
+    async def execute(self,contents:dict,task_list:list):
+        """
+            task_list: 
+        """
 
-        msgMain = MessageTemplate(f"AzureQuery", "execute","")
+        msgMain = MessageTemplate(self.name, "execute","")
         status = True
         results = []
         try:
             #01. format data as template definition
-            flgsta, data = self._format_data(data_request)
+            flgsta, data = self._format_data(task_list,contents)
 
             #02. loading data
             if flgsta:

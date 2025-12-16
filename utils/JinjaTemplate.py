@@ -32,51 +32,74 @@ class TemplateLoading(CBase):
         return jTemplate.render(data)
     
 
-class transfContextData(CBase):
+class AgentTask(CBase):
     
-    def __init__(self,template:str):
+    def __init__(self):
         super().__init__()
 
-        self.template = template
-
         self.placeholder = {
-            'list_of_question' : {
-                'context' : 'context',
+            'tasks' : {
                 'name' : 'name',
-                'input' : 'input',
-                'formula' : 'formula'
-            }
+                'personas' : 'personas',
+                'goal' : 'goal',
+                'task' : 'task'
+            },
+            'who_are_you' : 'who_are_you',
+            'global_context' : 'global_context',
+            'local_context' : 'local_context'
         }
 
-    def _load_data(self,data_set,rule_set): ### combine data_set and rule_set
+        self.assessment = ['who_are_you','local_context']
+
+    def _load_task(self,task_list:list,params:dict): ### combine data_set and rule_set
 
         outs = []
-        for k, v in data_set.items():
-            rule = rule_set.get(k)
-            if rule:
-                item = {
-                    'name' : k,
-                    'input' : v,
-                    'formula' : rule
-                }
 
-                outs.append(item)
+        params = self.placeholder.get('tasks') if not params else params
+
+        for task in task_list:
+            item = {}
+            for k, v in task.items():
+                if k in params.keys():
+                    item.update({k:v})
+
+            outs.append(item)
 
         return outs
     
-    def __call__(self, data_set:dict, rule_set:dict, list_field:list):
+    def _load_context(self,data_context:dict,params:str):
+        
+        res = None
+
+        if params in data_context.keys():
+            res = data_context.get(params)
+        
+        return res
+    
+    def _valid_task(self,result:dict):
+
+        for acq_key in self.assessment:
+            if not (acq_key in result.keys()):
+                self.logger.error(f"The info {acq_key} need identified to be Agent better!!!")
+                return False
+
+        return True
+    
+    def __call__(self, data_content:dict, task_list:list):
         
         result = {}
 
         for k, v in self.placeholder.items():
-            if not(k in list_field):
-                continue
-
             if isinstance(v, dict):
-                act_v = self._load_data(data_set,rule_set)
+                act_v = self._load_task(task_list,v)
 
+            else:
+                act_v = self._load_context(data_content,v)
 
-            result.update({k:act_v})
+            if act_v:
+                result.update({k:act_v})
 
-        return result
+        flag = self._valid_task(result)
+
+        return flag, result
     

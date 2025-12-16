@@ -25,20 +25,29 @@ class DocumentIntelligentLayout(AIBase):
             credential=AzureKeyCredential(self.key)
         )
 
-
-    async def extract(self, filename) -> list:
+    async def extract(self, filename):
         super().extract(filename)
+        document = None
+        flg = True
+        try:
 
-        with open(filename, 'rb') as f:
-            source_bytes = f.read()
+            with open(filename, 'rb') as f:
+                source_bytes = f.read()
 
-        poller = await self.client.begin_analyze_document(self.model_name
-                                                    , AnalyzeDocumentRequest(bytes_source=source_bytes)
-                                                    , output_content_format=DocumentContentFormat.MARKDOWN
-                                                    )
+            poller = await self.client.begin_analyze_document(self.model_name
+                                                        , AnalyzeDocumentRequest(bytes_source=source_bytes)
+                                                        , output_content_format=DocumentContentFormat.MARKDOWN
+                                                        )
 
-        result: AnalyzeResult = poller.result()
-        document = result.content
+            result: AnalyzeResult = poller.result()
+            document = result.content
         
+        except Exception as exec:
+            flg = False
+            self.logging_message(str(exec),action="extract",error=True)
 
-        return document
+
+        return {
+            'status' : flg,
+            'output' : document
+        }
