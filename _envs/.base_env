@@ -1,3 +1,16 @@
 HTTPS_PROXY="http://0.0.0.0:3128"
 HTTP_PROXY="http://10.1.1.93:3128"
 
+
+# Azure Model Chat, like o3-mini
+AZURE_CHATBOT_HOST=""
+AZURE_CHATBOT_KEY=""
+AZURE_MODEL_NAME=""
+AZURE_CHATBOT_VERSION=""
+
+# Auzre Document Intelligence, serving for image-2-text
+AZURE_DOC_INTEL_HOST=""
+AZURE_DOC_INTEL_KEY=""
+
+
+# Knowledge
